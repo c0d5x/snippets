@@ -1,3 +1,6 @@
+import os
+import sys
+
 
 def get_config_dir(app_name=''):
     if "XDG_CONFIG_HOME" in os.environ:
