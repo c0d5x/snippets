@@ -2,7 +2,7 @@
 """
 
 Tag your instance and/or volumes with:
-   Snapshot: yes|Yes|YES|1|true|True|TRUE|enable|Enabled|ENABLED
+   Snapshot: yes|Yes
 
 You can also pass instance ID or snapshot ALL (default).
 
@@ -17,6 +17,7 @@ Arguments:
   -h help
   -i <instance id or list of ids>
   -p <boto profile>, default: default
+  -t <tag>, default: Snapshot
   -n <1..1000>, default: 10, number of snapshots to keep for each volume
   -l <1..1000>, default: 24, number of hours that will elapse before creating a new snapshot
 
@@ -134,7 +135,7 @@ def traverse_all_instances_with_tag():
                     if i.tags[tag] in ["yes", "Yes"]:
                         traverse_all_volumes_for_instance(i)
                     else:
-                        print("Invalid value for tag: %s" % i.tags[tag])
+                        print("Invalid value for tag: %s, on %s" % (i.tags[tag], i.id))
 
 
 def traverse_all_volumes_with_tag():
@@ -228,7 +229,7 @@ Number of hours before creating a new snapshot: %s
 Instances to consider: %s
 """ % (BOTO_PROFILE, NUMBER_SNAPSHOTS, LIFETIME, instances))
 
-    if len(BOTO_PROFILE)>0:
+    if len(BOTO_PROFILE) > 0:
         conn = boto.connect_ec2(profile_name=BOTO_PROFILE)
     else:
         conn = boto.connect_ec2()
