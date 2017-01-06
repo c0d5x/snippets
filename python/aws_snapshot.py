@@ -230,12 +230,16 @@ Instances to consider: %s
 Tag: %s
 """ % (BOTO_PROFILE, NUMBER_SNAPSHOTS, LIFETIME, 'tagged' if instances == 'all' else instances, TAG))
 
-    if len(BOTO_PROFILE) > 0:
-        conn = boto.connect_ec2(profile_name=BOTO_PROFILE)
-    else:
-        conn = boto.connect_ec2()
-    if len(INSTANCE_IDS) > 0:
-        traverse_instances()
-    else:
-        traverse_all_instances_with_tag()
-        traverse_all_volumes_with_tag()
+    regions = ['us-east-1', 'us-west-1', 'us-west-2']
+    for region in regions:
+        if len(BOTO_PROFILE) > 0:
+            conn = boto.ec2.connect_to_region(region, profile_name=BOTO_PROFILE)
+            # conn = boto.connect_ec2(profile_name=BOTO_PROFILE)
+        else:
+            # conn = boto.connect_ec2()
+            conn = boto.ec2.connect_to_region(region)
+        if len(INSTANCE_IDS) > 0:
+            traverse_instances()
+        else:
+            traverse_all_instances_with_tag()
+            traverse_all_volumes_with_tag()
