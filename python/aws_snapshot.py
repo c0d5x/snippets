@@ -46,15 +46,14 @@ import sys
 from datetime import timedelta
 import datetime
 import getopt
-# import pdb
 import boto
 import dateutil.parser
 from dateutil import tz
 
-BOTO_PROFILE = 'default'
+BOTO_PROFILE = ''
 NUMBER_SNAPSHOTS = 10
 LIFETIME = 24
-TAG = ''
+TAG = 'Snapshot'
 # LIFETIME is the number of hours minimum to create a new snapshot
 # defaults to 1 per day
 
@@ -79,7 +78,7 @@ def parse_args(argv):
     for opt, arg in opts:
         if opt == '-p':
             BOTO_PROFILE = arg
-        elif opt == 't':
+        elif opt == '-t':
             TAG = arg
         elif opt == '-h':
             help()
@@ -112,18 +111,6 @@ def parse_args(argv):
             print("Bad option: %s" % opt)
 
 
-# def traverse_instances():
-#    global conn, INSTANCE_IDS
-#    reservations = conn.get_all_reservations()
-#    for r in reservations:
-#        for i in r.instances:
-#            if i.id in INSTANCE_IDS:
-#                INSTANCE_IDS.remove(i.id)
-#                traverse_all_volumes_for_instance(i)
-#    if len(INSTANCE_IDS) > 0:
-#        print("\nError: the following instance ids where NOT found: %s" %
-#              INSTANCE_IDS)
-
 def traverse_instances():
     global conn, INSTANCE_IDS, TAG
     reservations = conn.get_all_reservations()
@@ -132,33 +119,27 @@ def traverse_instances():
             if i.id in INSTANCE_IDS:
                 INSTANCE_IDS.remove(i.id)
                 traverse_all_volumes_for_instance(i)
-            if TAG != '':
-                for tag in i.get_all_tags():
-                    if tag.name == TAG:
-                        if tag.value in ["1", "yes", "Yes", "YES", "enable", "Enable", "ENABLE"]:
-                            traverse_all_volumes_for_instance(i)
     if len(INSTANCE_IDS) > 0:
         print("\nError: the following instance ids where NOT found: %s" %
               INSTANCE_IDS)
 
 
-def traverse_all_instances():
+def traverse_all_instances_with_tag():
     global conn
     reservations = conn.get_all_reservations()
     for r in reservations:
         for i in r.instances:
-            traverse_all_volumes_for_instance(i)
+            for tag in i.tags:
+                if tag == TAG:
+                    if i.tags[tag] in ["yes", "Yes"]:
+                        traverse_all_volumes_for_instance(i)
+                    else:
+                        print("Invalid value for tag: %s" % i.tags[tag])
 
 
-def traverse_all_volumes():
-    global conn, VERBOSE
-#    if VERBOSE:
-#        if 'Name' in instance_obj.tags:
-#            print("Instance: %s, Name: %s" %
-#                  (instance_obj.id, instance_obj.tags['Name']))
-#        else:
-#            print("Instance: %s" % instance_obj.id)
-    volumes = conn.get_all_volumes(filters={'tag:Snapshot': ['yes', 'Yes']})
+def traverse_all_volumes_with_tag():
+    global conn, VERBOSE, TAG
+    volumes = conn.get_all_volumes(filters={'tag:' + TAG: ['yes', 'Yes']})
     for v in volumes:
         check_n_snapshot_volume(v)
 
@@ -186,7 +167,7 @@ def check_n_snapshot_volume(volume_obj):
         else:
             print(" Volume: %s" % volume_obj.id)
 
-            # first delete snapshots if necessary
+    # first delete snapshots if necessary
     snapshots = volume_obj.snapshots()
     ordered_snaps = sorted(snapshots,
                            key=lambda vol: vol.start_time, reverse=True)
@@ -247,9 +228,12 @@ Number of hours before creating a new snapshot: %s
 Instances to consider: %s
 """ % (BOTO_PROFILE, NUMBER_SNAPSHOTS, LIFETIME, instances))
 
-    conn = boto.connect_ec2(profile_name=BOTO_PROFILE)
+    if len(BOTO_PROFILE)>0:
+        conn = boto.connect_ec2(profile_name=BOTO_PROFILE)
+    else:
+        conn = boto.connect_ec2()
     if len(INSTANCE_IDS) > 0:
         traverse_instances()
     else:
-        traverse_all_instances()
-        traverse_all_volumes()
+        traverse_all_instances_with_tag()
+        traverse_all_volumes_with_tag()
