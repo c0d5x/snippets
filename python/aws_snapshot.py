@@ -48,6 +48,7 @@ from datetime import timedelta
 import datetime
 import getopt
 import boto
+import boto.ec2
 import dateutil.parser
 from dateutil import tz
 
