@@ -1,7 +1,10 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3.5
 """
-This script creates snapshots for all your instances or a set
-of instances received as argument.
+
+Tag your instance and/or volumes with:
+   Snapshot: yes|Yes|YES|1|true|True|TRUE|enable|Enabled|ENABLED
+
+You can also pass instance ID or snapshot ALL (default).
 
 It uses boto just like ansible, and you don't need to specify
 credentials. You can use multiple boto profiles as described here:
@@ -10,26 +13,26 @@ http://boto.cloudhackers.com/en/latest/boto_config_tut.html
 
 Arguments:
   ALL arguments are optional.
-  -v Verbose mode
+  -v VERBOSE mode
   -h help
   -i <instance id or list of ids>
   -p <boto profile>, default: default
-  -n <1..1000>, number of snapshots to keep for each volume
-  -l <1..1000>, number of hours that will elapse before creating a new snapshot
+  -n <1..1000>, default: 10, number of snapshots to keep for each volume
+  -l <1..1000>, default: 24, number of hours that will elapse before creating a new snapshot
 
 
 Examples:
   python snapshot_instances.py
        This will snapshot all volumes of all instances, keeping 10 snapshots
-       creating a new one every week
+       creating a new one every day
 
   python snapshot_instances.py -i i-342abc3
        This will snapshot all volumes of i-342abc3, keeping 10 snapshots
-       creating a new one every week
+       creating a new one every day
 
   python snapshot_instances.py -i i-342abc3,i-342abc4,i-213abc2
        This will snapshot all volumes of i-342abc3, keeping 10 snapshots
-       creating a new one every week
+       creating a new one every day
 
   python snapshot_instances.py -p work -n 4 -l 168
        Snapshot all instances in your work profile, creating one snapshot
@@ -39,34 +42,35 @@ Examples:
        Same as the first example, printing status as it goes.
 """
 
-
 import sys
-import getopt
-import datetime
 from datetime import timedelta
+import datetime
+import getopt
+# import pdb
+import boto
 import dateutil.parser
 from dateutil import tz
-import boto
 
-SNAPS = 10
-LIFETIME = 168.0
+BOTO_PROFILE = 'default'
+NUMBER_SNAPSHOTS = 10
+LIFETIME = 24
+TAG = ''
+# LIFETIME is the number of hours minimum to create a new snapshot
+# defaults to 1 per day
 
-
-boto_profile = 'default'
-number_snapshots = SNAPS
-lifetime = LIFETIME
-# lifetime is the number of hours minimum to create a new snapshot
-# defaults to 1 week
-
-instance_ids = ''
-aws_conn = None
-verbose = False
+INSTANCE_IDS = ''
+AWS_CONN = None
+VERBOSE = False
 
 
 def parse_args(argv):
-    global boto_profile, number_snapshots, lifetime, instance_ids, verbose
+    """
+    Basic arg parsing
+    """
+
+    global BOTO_PROFILE, NUMBER_SNAPSHOTS, LIFETIME, INSTANCE_IDS, VERBOSE, TAG
     try:
-        opts, args = getopt.getopt(argv, "p:n:l:i:vh")
+        opts, args = getopt.getopt(argv, "t:p:n:l:i:vh")
     except getopt.GetoptError:
         print("Error parsing options")
         help()
@@ -74,49 +78,68 @@ def parse_args(argv):
 
     for opt, arg in opts:
         if opt == '-p':
-            boto_profile = arg
+            BOTO_PROFILE = arg
+        elif opt == 't':
+            TAG = arg
         elif opt == '-h':
             help()
             sys.exit(0)
         elif opt == '-v':
-            verbose = True
+            VERBOSE = True
         elif opt == '-n':
             try:
-                number_snapshots = int(arg)
-                if number_snapshots < 1 or number_snapshots > 1000:
-                    number_snapshots = SNAPS
+                NUMBER_SNAPSHOTS = int(arg)
+                if NUMBER_SNAPSHOTS < 1 or NUMBER_SNAPSHOTS > 1000:
+                    NUMBER_SNAPSHOTS = 10
                     raise ValueError("Incorrect number of snapshots")
             except:
                 print("Incorrect number of snapshots, using default %s" %
-                      number_snapshots)
+                      NUMBER_SNAPSHOTS)
         elif opt == '-l':
             try:
-                lifetime = int(arg)
-                if lifetime < 1 or lifetime > 1000:
-                    lifetime = LIFETIME
-                    raise ValueError("Incorrect lifetime(-l) value")
+                LIFETIME = int(arg)
+                if LIFETIME < 1 or LIFETIME > 1000:
+                    LIFETIME = 24
+                    raise ValueError("Incorrect LIFETIME(-l) value")
             except:
-                print("Invalid -l argument, using default %s" % lifetime)
+                print("Invalid -l argument, using default %s" % LIFETIME)
         elif opt == '-i':
             if arg.index(','):
-                instance_ids = arg.split(',')
+                INSTANCE_IDS = arg.split(',')
             else:
-                instance_ids = [arg]
+                INSTANCE_IDS = [arg]
         else:
             print("Bad option: %s" % opt)
 
 
+# def traverse_instances():
+#    global conn, INSTANCE_IDS
+#    reservations = conn.get_all_reservations()
+#    for r in reservations:
+#        for i in r.instances:
+#            if i.id in INSTANCE_IDS:
+#                INSTANCE_IDS.remove(i.id)
+#                traverse_all_volumes_for_instance(i)
+#    if len(INSTANCE_IDS) > 0:
+#        print("\nError: the following instance ids where NOT found: %s" %
+#              INSTANCE_IDS)
+
 def traverse_instances():
-    global conn, instance_ids
+    global conn, INSTANCE_IDS, TAG
     reservations = conn.get_all_reservations()
     for r in reservations:
         for i in r.instances:
-            if i.id in instance_ids:
-                instance_ids.remove(i.id)
-                traverse_all_volumes(i)
-    if len(instance_ids) > 0:
+            if i.id in INSTANCE_IDS:
+                INSTANCE_IDS.remove(i.id)
+                traverse_all_volumes_for_instance(i)
+            if TAG != '':
+                for tag in i.get_all_tags():
+                    if tag.name == TAG:
+                        if tag.value in ["1", "yes", "Yes", "YES", "enable", "Enable", "ENABLE"]:
+                            traverse_all_volumes_for_instance(i)
+    if len(INSTANCE_IDS) > 0:
         print("\nError: the following instance ids where NOT found: %s" %
-              instance_ids)
+              INSTANCE_IDS)
 
 
 def traverse_all_instances():
@@ -124,12 +147,25 @@ def traverse_all_instances():
     reservations = conn.get_all_reservations()
     for r in reservations:
         for i in r.instances:
-            traverse_all_volumes(i)
+            traverse_all_volumes_for_instance(i)
 
 
-def traverse_all_volumes(instance_obj):
-    global conn, verbose
-    if verbose:
+def traverse_all_volumes():
+    global conn, VERBOSE
+#    if VERBOSE:
+#        if 'Name' in instance_obj.tags:
+#            print("Instance: %s, Name: %s" %
+#                  (instance_obj.id, instance_obj.tags['Name']))
+#        else:
+#            print("Instance: %s" % instance_obj.id)
+    volumes = conn.get_all_volumes(filters={'tag:Snapshot': ['yes', 'Yes']})
+    for v in volumes:
+        check_n_snapshot_volume(v)
+
+
+def traverse_all_volumes_for_instance(instance_obj):
+    global conn, VERBOSE
+    if VERBOSE:
         if 'Name' in instance_obj.tags:
             print("Instance: %s, Name: %s" %
                   (instance_obj.id, instance_obj.tags['Name']))
@@ -138,43 +174,43 @@ def traverse_all_volumes(instance_obj):
     volumes = conn.get_all_volumes(
         filters={'attachment.instance-id': instance_obj.id})
     for v in volumes:
-        check_volume(v)
+        check_n_snapshot_volume(v)
 
 
-def check_volume(volume_obj):
-    global conn, number_snapshots, verbose
-    if verbose:
+def check_n_snapshot_volume(volume_obj):
+    global conn, NUMBER_SNAPSHOTS, VERBOSE
+    if VERBOSE:
         if 'Name' in volume_obj.tags:
             print(" Volume: %s, Name: %s" %
                   (volume_obj.id, volume_obj.tags['Name']))
         else:
             print(" Volume: %s" % volume_obj.id)
 
-# first delete snapshots if necessary
+            # first delete snapshots if necessary
     snapshots = volume_obj.snapshots()
     ordered_snaps = sorted(snapshots,
                            key=lambda vol: vol.start_time, reverse=True)
-    if len(snapshots) >= number_snapshots:
-        while (len(ordered_snaps) >= number_snapshots):
+    if len(snapshots) >= NUMBER_SNAPSHOTS:
+        while (len(ordered_snaps) >= NUMBER_SNAPSHOTS):
             del_snap = ordered_snaps.pop()
             print("  Deleting snapshot: %s, description: %s" % (
-                  del_snap.id, del_snap.description))
+                del_snap.id, del_snap.description))
             del_snap.delete()
 
     now = datetime.datetime.now(tz.tzlocal())
-    clock = now - timedelta(hours=lifetime)
+    clock = now - timedelta(hours=LIFETIME)
 
-# create a snapshot if time is righ
+    # create a snapshot if time is righ
     if len(ordered_snaps) > 0:
         newest = ordered_snaps.pop(0)
         start_time = dateutil.parser.parse(newest.start_time)
 
         if start_time < clock:
             snapshot_volume(volume_obj)
-        elif verbose:
+        elif VERBOSE:
             print("  Recent snapshot found: %s, %s" %
                   (newest.id, newest.description))
-# create snapshot if the instance doesn't have one
+            # create snapshot if the instance doesn't have one
     else:
         snapshot_volume(volume_obj)
 
@@ -187,31 +223,33 @@ def snapshot_volume(volume_obj):
 
 
 def help():
-    global number_snapshots, lifetime, boto_profile
+    global NUMBER_SNAPSHOTS, LIFETIME, BOTO_PROFILE
     print("""
 Use:
   -n <number of snapshots to keep, default %s>
-  -l <number of hours each snapshot is going to be created, default %s, %s days>
+  -l <number of hours each snapshot is going to be created, default %s>
+  -t <TagName>, default 'Snapshot'
   -p <boto profile, default: '%s'>
   -i <instance id or list of ids, default: all instances are considered>
-  -v verbose mode
-""" % (number_snapshots, lifetime, (lifetime / 24.0), boto_profile))
+  -v VERBOSE mode
+""" % (NUMBER_SNAPSHOTS, LIFETIME, BOTO_PROFILE))
 
 
 if __name__ == "__main__":
     parse_args(sys.argv[1:])
     instances = 'all'
-    if type(instance_ids) is list:
-        instances = str(instance_ids)
-    if verbose:
+    if type(INSTANCE_IDS) is list:
+        instances = str(INSTANCE_IDS)
+    if VERBOSE:
         print("""Using boto profile: %s
 Number of snapshots to keep for each volume: %s
-Number of hours before creating a new snapshot: %s, %s days
+Number of hours before creating a new snapshot: %s
 Instances to consider: %s
-""" % (boto_profile, number_snapshots, lifetime, (lifetime / 24.0), instances))
+""" % (BOTO_PROFILE, NUMBER_SNAPSHOTS, LIFETIME, instances))
 
-    conn = boto.connect_ec2(profile_name=boto_profile)
-    if len(instance_ids) > 0:
+    conn = boto.connect_ec2(profile_name=BOTO_PROFILE)
+    if len(INSTANCE_IDS) > 0:
         traverse_instances()
     else:
         traverse_all_instances()
+        traverse_all_volumes()
