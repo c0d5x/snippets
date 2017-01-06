@@ -18,7 +18,7 @@ Arguments:
   -i <instance id or list of ids>
   -p <boto profile>, default: default
   -t <tag>, default: Snapshot
-  -n <1..1000>, default: 10, number of snapshots to keep for each volume
+  -n <1..1000>, default: 15, number of snapshots to keep for each volume
   -l <1..1000>, default: 24, number of hours that will elapse before creating a new snapshot
 
 
@@ -52,7 +52,7 @@ import dateutil.parser
 from dateutil import tz
 
 BOTO_PROFILE = ''
-NUMBER_SNAPSHOTS = 10
+NUMBER_SNAPSHOTS = 15
 LIFETIME = 24
 TAG = 'Snapshot'
 # LIFETIME is the number of hours minimum to create a new snapshot
@@ -227,7 +227,8 @@ if __name__ == "__main__":
 Number of snapshots to keep for each volume: %s
 Number of hours before creating a new snapshot: %s
 Instances to consider: %s
-""" % (BOTO_PROFILE, NUMBER_SNAPSHOTS, LIFETIME, instances))
+Tag: %s
+""" % (BOTO_PROFILE, NUMBER_SNAPSHOTS, LIFETIME, 'tagged' if instances == 'all' else instances, TAG))
 
     if len(BOTO_PROFILE) > 0:
         conn = boto.connect_ec2(profile_name=BOTO_PROFILE)
