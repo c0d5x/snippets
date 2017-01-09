@@ -63,6 +63,8 @@ INSTANCE_IDS = ''
 AWS_CONN = None
 VERBOSE = False
 
+CHECKED_VOLUMES = list()
+
 
 def parse_args(argv):
     """
@@ -135,12 +137,13 @@ def traverse_all_instances_with_tag():
                 if tag == TAG:
                     if i.tags[tag] in ["yes", "Yes"]:
                         traverse_all_volumes_for_instance(i)
-                    else:
+                    elif i.tags[tag] != '':
                         print("Invalid value for tag: %s, on %s" % (i.tags[tag], i.id))
 
 
 def traverse_all_volumes_with_tag():
     global conn, VERBOSE, TAG
+    print ("Volumes with tag:")
     volumes = conn.get_all_volumes(filters={'tag:' + TAG: ['yes', 'Yes']})
     for v in volumes:
         check_n_snapshot_volume(v)
@@ -148,12 +151,18 @@ def traverse_all_volumes_with_tag():
 
 def traverse_all_volumes_for_instance(instance_obj):
     global conn, VERBOSE
-    if VERBOSE:
-        if 'Name' in instance_obj.tags:
-            print("Instance: %s, Name: %s" %
-                  (instance_obj.id, instance_obj.tags['Name']))
-        else:
-            print("Instance: %s" % instance_obj.id)
+#     if VERBOSE:
+#         if 'Name' in instance_obj.tags:
+#             print("Instance: %s, Name: %s" %
+#                   (instance_obj.id, instance_obj.tags['Name']))
+#         else:
+#             print("Instance: %s" % instance_obj.id)
+
+    if 'Name' in instance_obj.tags:
+        print("Instance: %s, Name: %s" %
+              (instance_obj.id, instance_obj.tags['Name']))
+    else:
+        print("Instance: %s" % instance_obj.id)
     volumes = conn.get_all_volumes(
         filters={'attachment.instance-id': instance_obj.id})
     for v in volumes:
@@ -161,7 +170,13 @@ def traverse_all_volumes_for_instance(instance_obj):
 
 
 def check_n_snapshot_volume(volume_obj):
-    global conn, NUMBER_SNAPSHOTS, VERBOSE
+    global conn, NUMBER_SNAPSHOTS, VERBOSE, CHECKED_VOLUMES
+
+    # don-t check same volume more than once
+    if volume_obj.id in CHECKED_VOLUMES:
+        return
+
+
     if VERBOSE:
         if 'Name' in volume_obj.tags:
             print(" Volume: %s, Name: %s" %
@@ -196,6 +211,8 @@ def check_n_snapshot_volume(volume_obj):
             # create snapshot if the instance doesn't have one
     else:
         snapshot_volume(volume_obj)
+
+    CHECKED_VOLUMES.append(volume_obj.id)
 
 
 def snapshot_volume(volume_obj):
@@ -233,12 +250,12 @@ Tag: %s
 
     regions = ['us-east-1', 'us-west-1', 'us-west-2']
     for region in regions:
+        print ("Checking region '%s':" % region)
         if len(BOTO_PROFILE) > 0:
             conn = boto.ec2.connect_to_region(region, profile_name=BOTO_PROFILE)
-            # conn = boto.connect_ec2(profile_name=BOTO_PROFILE)
         else:
-            # conn = boto.connect_ec2()
             conn = boto.ec2.connect_to_region(region)
+
         if len(INSTANCE_IDS) > 0:
             traverse_instances()
         else:
