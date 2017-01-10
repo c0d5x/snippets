@@ -49,6 +49,9 @@ def parse_args(argv):
             VERBOSE = True
         else:
             print("Bad option: %s" % opt)
+    if TAG == '':
+        help()
+        sys.exit(0)
 
 
 
