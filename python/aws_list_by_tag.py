@@ -59,7 +59,7 @@ def traverse_all_instances_with_tag():
     global conn
     reservations = conn.get_all_reservations(filters={'tag:' + TAG: ['yes', 'Yes']})
     if len(reservations) > 0:
-        print("Instances with tag:")
+        print("  Instances with tag:")
     for r in reservations:
         for i in r.instances:
             if 'Name' in i.tags:
@@ -72,7 +72,7 @@ def traverse_all_volumes_with_tag():
     global conn, VERBOSE, TAG
     volumes = conn.get_all_volumes(filters={'tag:' + TAG: ['yes', 'Yes']})
     if len(volumes) > 0:
-        print ("Volumes with tag:")
+        print ("  Volumes with tag:")
     for v in volumes:
         if 'Name' in v.tags:
             print("\t%s - %s" % (v.tags['Name'], v.id))
