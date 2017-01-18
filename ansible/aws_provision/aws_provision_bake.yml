@@ -1,3 +1,15 @@
+# variables:
+#   warfile
+#   instance_type
+#   security_group
+#   image
+#   region
+#   keypair
+
+
+# ansible-playbook aws_provision_bake.yml -e instance_type=t2.micro -e security_group=pocdeploy -e image=ami-18d98a78 -e keypair=gl-josehidalgo-pub-ssh -e warfile=omnipollo_v1.war
+
+
 ---
   - name: Provision an EC2 Instance
     hosts: localhost
@@ -5,14 +17,8 @@
     gather_facts: False
     tags: provisioning
     vars:
-      instance_type: t2.micro
-      security_group: "pocdeploy" # Change the security group name here
-      image: ami-18d98a78 # Change the AMI, from which you want to launch the server
-      region: us-west-1 # Change the Region
-      keypair: gl-josehidalgo-pub-ssh # Change the keypair name
       count: 1
 
-    # Task that will be used to Launch/Create an EC2 Instance
     tasks:
       - name: Download WAR file
         s3:
@@ -32,13 +38,21 @@
                       count={{count}}
         register: ec2
 
-      - name: Add the newly created EC2 instance(s) to the local host group (located inside the directory)
-        local_action: lineinfile 
-                      dest="./hosts" 
-                      regexp={{ item.public_ip }} 
-                      insertafter="[deployed]" line={{ item.public_ip }}
+      - name: Add tag to Instance(s)
+        local_action: ec2_tag resource={{ item.id }} region={{ region }} state=present
+        with_items: "{{ ec2.instances }}"
+        args:
+          tags:
+            Name: "{{warfile}}"
+
+      - name: Adding new instance to group for configuration
+        add_host: hostname={{ item.public_ip }} groupname="deployed"
         with_items: "{{ ec2.instances }}"
 
+      - name: Set instance id globally
+        set_fact: instanceid={{ ec2.instances[0].id }}
+
+      - debug: msg={{ instanceid }}
 
       - name: Wait for WinRM to come up
         local_action: wait_for 
@@ -47,37 +61,30 @@
                       state=started
         with_items: "{{ ec2.instances }}"
 
-      - name: Add tag to Instance(s)
-        local_action: ec2_tag resource={{ item.id }} region={{ region }} state=present
-        with_items: "{{ ec2.instances }}"
-        args:
-          tags:
-            Name: "{{warfile}}"
-
+  - hosts: deployed
+    gather_facts: false
+    tasks:
       - name: Stop tomcat
-        with_items: "{{ ec2.instances }}"
         win_service: name=Tomcat8 state=stopped
 
       - name: Copy WAR to app servers
-        with_items: "{{ ec2.instances }}"
         win_copy:
             src: "./files/{{ warfile }}"
             dest: "c:/tomcat8/webapps/{{ warfile }}"
 
       - name: Enable Tomcat service
-        with_items: "{{ ec2.instances }}"
         win_service: name=Tomcat8 state=started start_mode=auto
 
+  - hosts: localhost
+    connection: local
+    gather_facts: False
+    tasks:
       - name: Bake AMI
-        with_items: "{{ ec2.instances }}"
-        ec2_ami:
-            instance_id: "{{ instance.id }}"
-            name: "{{ warfile }}"
-            device_mapping:
-                - device_name: /dev/sda1
-                  size: 30
-                  delete_on_termination: true
-                  volume_type: gp2
-        register: ami
+        shell: aws ec2 create-image --instance-id "{{ instanceid }}" --name "{{ warfile }}"|jq -r '.ImageId'
+        register: newami
+      - debug: msg={{ newami.stdout }}
+      - name: Wait for new ami
+        command: aws ec2 wait image-available --image-ids "{{ newami.stdout }}"
+      - name: Terminate modeling instance
+        command: aws ec2 terminate-instances --instance-ids "{{ instanceid }}"
 
-      - debug: var=ami
