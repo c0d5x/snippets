@@ -1,9 +1,7 @@
 
-
-
 resource "aws_elb" "elbpocdeploy" {
   name = "elbpocdeploy"
-  availability_zones = ["us-west-1a", "us-west-1c"]
+  availability_zones = "${var.azs}"
 
   listener {
     instance_port = 8080
@@ -26,6 +24,32 @@ resource "aws_elb" "elbpocdeploy" {
   connection_draining_timeout = 400
 
   tags {
-    Name = "elbpocdeploy"
+    Name = "pocdeploy"
   }
+}
+
+resource "aws_launch_configuration" "lcpocdeploy" {
+    name = "lcpocdeploy"
+    image_id = "${var.ami}"
+    instance_type = "${var.instance_type}"
+    key_name = "${var.keyname}"
+    security_groups = "${securitygroups}"
+    placement_tenancy = "${placement}"
+    tags {
+      Name = "pocdeploy"
+    }
+}
+
+
+resource "aws_autoscaling_group" "asgpocdeploy" {
+    name = "asgpocdeploy"
+    launch_configuration = "${aws_launch_configuration.lcpocdeploy.name}"
+    load_balancers = ["${aws_elb.elbpocdeploy.name}"]
+    lifecycle {
+      create_before_destroy = true
+    }
+    availability_zones = "${azs}"
+    tags {
+      Name = "pocdeploy"
+    }
 }
