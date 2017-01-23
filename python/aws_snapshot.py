@@ -73,7 +73,7 @@ def parse_args(argv):
 
     global BOTO_PROFILE, NUMBER_SNAPSHOTS, LIFETIME, INSTANCE_IDS, VERBOSE, TAG
     try:
-        opts, args = getopt.getopt(argv, "t:p:n:l:i:vh")
+        opts, _ = getopt.getopt(argv, "t:p:n:l:i:vh")
     except getopt.GetoptError:
         print("Error parsing options")
         help()
@@ -116,10 +116,13 @@ def parse_args(argv):
 
 
 def traverse_instances():
+    """
+    traverse instances
+    """
     global conn, INSTANCE_IDS, TAG
     reservations = conn.get_all_reservations()
-    for r in reservations:
-        for i in r.instances:
+    for res in reservations:
+        for i in res.instances:
             if i.id in INSTANCE_IDS:
                 INSTANCE_IDS.remove(i.id)
                 traverse_all_volumes_for_instance(i)
@@ -143,7 +146,7 @@ def traverse_all_instances_with_tag():
 
 def traverse_all_volumes_with_tag():
     global conn, VERBOSE, TAG
-    print ("Volumes with tag:")
+    print("Volumes with tag:")
     volumes = conn.get_all_volumes(filters={'tag:' + TAG: ['yes', 'Yes']})
     for v in volumes:
         check_n_snapshot_volume(v)
@@ -175,7 +178,6 @@ def check_n_snapshot_volume(volume_obj):
     # don-t check same volume more than once
     if volume_obj.id in CHECKED_VOLUMES:
         return
-
 
     if VERBOSE:
         if 'Name' in volume_obj.tags:
@@ -250,7 +252,7 @@ Tag: %s
 
     regions = ['us-east-1', 'us-west-1', 'us-west-2']
     for region in regions:
-        print ("Checking region '%s':" % region)
+        print("Checking region '%s':" % region)
         if len(BOTO_PROFILE) > 0:
             conn = boto.ec2.connect_to_region(region, profile_name=BOTO_PROFILE)
         else:
