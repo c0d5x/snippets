@@ -195,7 +195,10 @@ def check_n_snapshot_volume(volume_obj):
             del_snap = ordered_snaps.pop()
             print("  Deleting snapshot: %s, description: %s" % (
                 del_snap.id, del_snap.description))
-            del_snap.delete()
+            try:
+                del_snap.delete()
+            except:
+                print("Snapshot not deleted, used by AMI ?")
 
     now = datetime.datetime.now(tz.tzlocal())
     clock = now - timedelta(hours=LIFETIME)
