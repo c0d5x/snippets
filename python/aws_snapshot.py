@@ -198,7 +198,7 @@ def check_n_snapshot_volume(volume_obj):
             try:
                 del_snap.delete()
             except:
-                print("Snapshot not deleted, used by AMI ?")
+                print("\tSnapshot not deleted, used by AMI ?")
 
     now = datetime.datetime.now(tz.tzlocal())
     clock = now - timedelta(hours=LIFETIME)
