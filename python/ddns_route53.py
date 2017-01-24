@@ -1,7 +1,6 @@
 #!/usr/bin/env python2
 """
- Author: jose@josehidalgo.net,
- github.com/joseche
+c0d5x
 
  Requirements:
  pip install boto urlopen
@@ -20,7 +19,7 @@ import traceback
 import datetime
 from json import load
 
-#from urllib.request import urlopen
+# from urllib.request import urlopen
 from urllib2 import urlopen
 
 import boto.route53
@@ -37,6 +36,7 @@ def verb(msg):
 
 
 def usage():
+    """ help """
     print("""
 Missing arguments, use -d <domain> -r <record_name>
 optional:
@@ -47,6 +47,7 @@ optional:
 
 
 def main(argv):
+    """ main """
     global VERBOSE
     profile = 'default'
     domain = None
@@ -56,7 +57,7 @@ def main(argv):
     conn = None
 
     try:
-        opts, args = getopt.getopt(argv, "p:d:r:v", ["profile=", "domain=", "record="])
+        opts, _ = getopt.getopt(argv, "p:d:r:v", ["profile=", "domain=", "record="])
     except getopt.GetoptError:
         usage()
 
