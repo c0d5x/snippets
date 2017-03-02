@@ -1,0 +1,19 @@
+- name: Plugins
+  with_items:                             # PLUGIN NAME
+  - name: checkstyle                      # Checkstyle
+  - name: dashboard-view                  # Dashboard View
+  - name: dependency-check-jenkins-plugin # OWASP Dependency Check
+  - name: depgraph-view                   # Dependency Graph View
+  - name: deploy                          # Deploy
+  - name: emotional-jenkins-plugin        # Emotional Jenkins
+  - name: monitoring                      # Monitoring
+  - name: publish-over-ssh                # Publish Over SSH
+  - name: shelve-project-plugin           # Shelve Project
+  - name: token-macro                     # Token Macro
+  - name: zapper                          # OWASP Zed Attack Proxy (ZAP)
+  sudo: yes
+  get_url: dest="{{ jenkins_home }}/plugins/{{ item.name | mandatory }}.jpi"
+           url="https://updates.jenkins-ci.org/latest/{{ item.name }}.hpi"
+           owner=jenkins group=jenkins mode=0644
+  notify: Restart Jenkins
+

