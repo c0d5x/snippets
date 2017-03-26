@@ -11,6 +11,13 @@
  [default]
  aws_access_key_id=<YOUR ACCESS KEY ID>
  aws_secret_access_key=<YOUR SECRET KEY>
+
+
+TODO: make it a class
+TODO: also accept region as argument
+TODO: set either public ip or private ip
+
+
 """
 
 
@@ -88,7 +95,8 @@ def main(argv):
     verb('Current public ip: ' + curip)
 
     try:
-        conn = boto.route53.connect_to_region('us-east-1', profile_name=profile)
+        # conn = boto.route53.connect_to_region('us-east-1', profile_name=profile)
+        conn = boto.route53.connect_to_region('us-west-1', profile_name=profile)
         if conn:
             zone = conn.get_zone(domain)
             if zone:
