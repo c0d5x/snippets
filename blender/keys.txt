@@ -1,0 +1,16 @@
+
+Left click:
+    select (dot, line, face)
+Shift + left click:
+    add to selection
+B:
+    select with mouse
+
+Edit mode
+Ctrl+B:
+    Create Bevel curve
+    Ctrl+B  +  scroll: more divisions, smoother
+
+E:
+    Extrude, duplicate dots
+
