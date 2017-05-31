@@ -1,0 +1,43 @@
+
+| Key                   | Description                    |
+|-----------------------|--------------------------------|
+| NumPad 0              | camera view                    |
+| NumPad 1/3/7          | front / right / top view       |
+| ctrl NumPad 1/3/7     | back / left / bottom           |
+| 5                     | perspective / orth             |
+| b                     | select with mouse              |
+| b + wheel click       | remove from selection          |
+| c + right click       | circle select                  |
+| c + wheel click       | circle deselect                |
+| e                     | extrude                        |
+| g                     | move                           |
+| z                     | toggle solid/wireframe         |
+| v                     | rip line                       |
+| p                     | separate selection             |
+| w                     | option menu                    |
+| f                     | fill/connect                   |
+| s                     | scale                          |
+| r                     | rotate                         |
+| r + x                 | rotate over x                  |
+| r + y?                | rotate over y?                 |
+| t                     | toolbar                        |
+| n                     | obj properties                 |
+| x                     | delete obj                     |
+| space                 | search menu                    |
+| ctr + shift + alt + c | set obj origin                 |
+| shift + a             | add objs                       |
+| shift + d             | duplicate objs                 |
+| alt + d               | duplicate objs linked          |
+| right click           | select                         |
+| ctrl + tab            | change selection mode          |
+| ctrl + l              | select linked objs             |
+| shift + right click   | add to selection               |
+| ctrl + right click    | lasso add to selection         |
+| ctrl + +/-            | grow / shrink selection        |
+| ctrl + r              | loop cut                       |
+| ctrl + r, wheel       | add subdivisions               |
+| ctrl + j              | join objs                      |
+| ctrl + b              | create bevel curve             |
+| ctrl + b, wheel       | create bevel curve, add subdiv |
+| shift + b, mouse sel  | zoom to square                 |
+| alt + right click     | edge loop                      |
