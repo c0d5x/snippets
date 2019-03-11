@@ -136,12 +136,21 @@ class Person(models.Model):
     date_added = models.DateField(auto_now_add=True)
 
     class Meta:
+        verbose_name_plural = "Persons"
+        verbose_name = "Person"
         unique_together = ("name", "email")
         ordering = ['-last_name']
+        get_latest_by = "order_date"
+        # Latest by priority descending, order_date ascending.
+        get_latest_by = ['-priority', 'order_date']
+        order_with_respect_to = 'question'
         indexes = [
             models.Index(fields=['city', 'state']),
             models.Index(fields=['city'], name='city_idx')
         ]
+
+    def __str__(self):
+        return first_name
 
 
 
@@ -180,4 +189,8 @@ def calorie_watcher(value):
 
 class X(models.Model):
     calories = models.IntegerField(validators=[calorie_watcher])
+
+# validators
+https://docs.djangoproject.com/en/2.1/ref/validators/
+
 
